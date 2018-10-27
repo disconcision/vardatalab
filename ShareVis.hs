@@ -25,21 +25,18 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 
 
-
 type ID = Int
 type V = (ID, String)
 type E = (ID, ID, String)
 type Graph = ([V], [E])
 
---toGraph :: [String] -> Graph
---toGraph [] = ([("null", 0)],[])
+type VLabel = String
+type ELabel = String
 
 type MemoryTable = [(ID, (String, ID))]
 
---initialMemoryTable :: MemoryTable
---initialMemoryTable = [(0, ("/", 0))]
 
-
+-- ACTUAL TEST DATA
 lx = []
 l0 = "0" : lx
 l1 = "1" : l0
@@ -53,6 +50,7 @@ l2name = "l2"
 
 testLists :: [(String, [String])]
 testLists = [(l0name, l0), (l1name, l1), (l2name, l2)]
+-- END TEST DATA
 
 
 variableTable :: MemoryTable
@@ -61,80 +59,54 @@ variableTable = concatMap
       [(getName variableName, (variableName, getName list))]
     ) testLists  
 
+
 memoryTable :: MemoryTable
 memoryTable = concat [mapMem l2 [], variableTable]
+
 
 mapMem :: [String] -> MemoryTable -> MemoryTable
 mapMem [] _ = [(getName [], ("null", getName []))]
 mapMem c@(x: xs) table =
     concat [[(getName c, (x, getName xs))], (mapMem xs table)]
 
+
 graph :: Graph
 graph = (map (\ (loc, (label, next)) -> (loc, label)) memoryTable,
          map (\ (loc, (label, next)) -> (loc, next, "next")) memoryTable)
 
-type VLabel = String
-type ELabel = String
 
-newMT = map (\ (loc, (label, next)) -> (loc, (TL.pack label, next))) memoryTable
-
-fileGraphParams :: G.GraphvizParams ID String String () String
-fileGraphParams = G.defaultParams {
-  {-G.globalAttributes = [ G.GraphAttrs [ G.RankDir   G.FromLeft
-                          , G.BgColor   [G.toWColor G.White]
-                          ]
-             , G.NodeAttrs  [ G.shape     G.BoxShape
-                          , G.FillColor (myColorCL 2)
-                          , G.style     G.filled
-                          ]
-             ],-}
+graphStyleParams :: G.GraphvizParams ID String String () String
+graphStyleParams = G.defaultParams {
+  G.globalAttributes =
+    [ G.GraphAttrs [ G.RankDir   G.FromLeft
+                   , G.BgColor   [G.toWColor G.White]]
+    , G.NodeAttrs  [ G.shape     G.BoxShape
+                   , G.FontColor fontColor
+                   , G.FillColor (G.toColorList $ [fillColor])
+                   , G.style     G.filled
+                   ]
+    ],
   G.fmtNode = \(v, vl) -> case vl of
-      _ -> [G.textLabel (TL.pack vl)],
+      _ -> [G.textLabel (TL.pack vl),
+            G.Color $ G.toColorList [ G.RGB 0 0 0 ]],
   G.fmtEdge = \(from, to, el) -> case el of
-      "next" -> colorAttribute $ G.RGB 200 0 0
+      "next" -> [{-G.textLabel (TL.pack el),-}
+                 G.Color $ G.toColorList [ G.RGB 255 0 0 ]]
       }  
   where
-    colorAttribute color = [ G.Color $ G.toColorList [ color ] ]
+    fillColor = G.RGB 200 200 200
+    fontColor = G.RGB 255 0 0
     
-{-
-ex1Params :: G.GraphvizParams ID VLabel ELabel () String
-ex1Params = G.defaultParams { G.globalAttributes = ga,
-                              G.fmtNode          = fn,
-                              G.fmtEdge          = fe }
-  where fn (_,l)   = [G.textLabel l]
-        fe (_,_,l) = [G.textLabel l]
-
-        ga = [ G.GraphAttrs [ G.RankDir   G.FromLeft
-                          , G.BgColor   [G.toWColor G.White]
-                          ]
-             , G.NodeAttrs  [ G.shape     G.BoxShape
-                          , G.FillColor (myColorCL 2)
-                          , G.style     G.filled
-                          ]
-             ]
--}
-myColorCL :: Word8 -> G.ColorList
-myColorCL n | n == 1 = c $ (G.RGB 127 108 138)
-            | n == 2 = c $ (G.RGB 175 177 112)
-            | n == 3 = c $ (G.RGB 226 206 179)
-            | n == 4 = c $ (G.RGB 172 126 100)
- where c rgb = G.toColorList [rgb]
-
-myColor :: Word8 -> G.Attribute
-myColor n = G.Color $ myColorCL n             
 
 
 main :: IO ()  
 main = do
-    --(vs, es) <- graph
-    print $ concat [memoryTable, variableTable]
-    print graph
-    
-    let vs = fst graph
-        es = snd graph
-        dotGraph = G.graphElemsToDot fileGraphParams vs es :: G.DotGraph ID
+    --print $ concat [memoryTable, variableTable]
+    --print graph
+    let (vs, es) =  graph
+        dotGraph = G.graphElemsToDot graphStyleParams vs es :: G.DotGraph ID
         dotText = G.printDotGraph dotGraph  :: TL.Text
-    TL.writeFile "vargraph-files.dot" $ dotText
+    TL.writeFile "vargraphfile.dot" $ dotText
 
 
 
