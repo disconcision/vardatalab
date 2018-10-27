@@ -73,15 +73,23 @@ graph :: Graph
 graph = (map (\ (loc, (label, next)) -> (loc, label)) memoryTable,
          map (\ (loc, (label, next)) -> (loc, next, "next")) memoryTable)
 
-type VLabel = TL.Text
-type ELabel = TL.Text
+type VLabel = String
+type ELabel = String
 
 newMT = map (\ (loc, (label, next)) -> (loc, (TL.pack label, next))) memoryTable
 
 fileGraphParams :: G.GraphvizParams ID String String () String
 fileGraphParams = G.defaultParams {
+  {-G.globalAttributes = [ G.GraphAttrs [ G.RankDir   G.FromLeft
+                          , G.BgColor   [G.toWColor G.White]
+                          ]
+             , G.NodeAttrs  [ G.shape     G.BoxShape
+                          , G.FillColor (myColorCL 2)
+                          , G.style     G.filled
+                          ]
+             ],-}
   G.fmtNode = \(v, vl) -> case vl of
-      _ -> colorAttribute $ G.RGB 0 0 0,
+      _ -> [G.textLabel (TL.pack vl)],
   G.fmtEdge = \(from, to, el) -> case el of
       "next" -> colorAttribute $ G.RGB 200 0 0
       }  
@@ -89,11 +97,10 @@ fileGraphParams = G.defaultParams {
     colorAttribute color = [ G.Color $ G.toColorList [ color ] ]
     
 {-
-ex1Params :: G.GraphvizParams ID VLabel ELabel () TL.Text
-ex1Params = G.nonClusteredParams { G.globalAttributes = ga
-                               , G.fmtNode          =  fn
-                               , G.fmtEdge          =  fe
-                               }
+ex1Params :: G.GraphvizParams ID VLabel ELabel () String
+ex1Params = G.defaultParams { G.globalAttributes = ga,
+                              G.fmtNode          = fn,
+                              G.fmtEdge          = fe }
   where fn (_,l)   = [G.textLabel l]
         fe (_,_,l) = [G.textLabel l]
 
@@ -105,7 +112,7 @@ ex1Params = G.nonClusteredParams { G.globalAttributes = ga
                           , G.style     G.filled
                           ]
              ]
-
+-}
 myColorCL :: Word8 -> G.ColorList
 myColorCL n | n == 1 = c $ (G.RGB 127 108 138)
             | n == 2 = c $ (G.RGB 175 177 112)
@@ -115,7 +122,7 @@ myColorCL n | n == 1 = c $ (G.RGB 127 108 138)
 
 myColor :: Word8 -> G.Attribute
 myColor n = G.Color $ myColorCL n             
--}
+
 
 main :: IO ()  
 main = do
