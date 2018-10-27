@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module ShareVis where
 
@@ -14,10 +15,18 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 
 
+class MemMappable x where
+    makeNode :: x -> (String, [x])
+
+instance (Show b) => MemMappable [b] where 
+    makeNode [] = ("null", [])
+    makeNode (x:xs) = ((show x), [xs])
+
+
 
 type ID = Int
-type TestData a = [(String, [a])]
-type MemoryTable = [(ID, (String, ID))]
+type TestData a = [(String, a)]
+type MemoryTable = [(ID, (String, [ID]))]
 
 type VLabel = String
 type ELabel = String
@@ -27,8 +36,8 @@ type Graph = ([V], [E])
 
 
 
--- TODO: make sure I understand why we need bangpattern
--- and unsafePerformIO. Without bang pattern => const 1
+-- TODO: make sure I understand why we need BOTH bangpattern
+-- and $!. Without bangpat => const 1
 getName :: a -> Int
 getName !d = unsafePerformIO $ do
     n <- makeStableName $! d
@@ -36,24 +45,24 @@ getName !d = unsafePerformIO $ do
 
 
 -- makes a table of memory locations of the provided test data
-makeMemoryTable :: (Show a) =>  TestData a -> MemoryTable
+makeMemoryTable :: (MemMappable a) =>  TestData a -> MemoryTable
 makeMemoryTable =
     concatMap (\ (variableName, ls) ->
-        concat [[(getName variableName, (variableName, getName ls))],
-                mapMem ls []]) 
+        (getName variableName, (variableName, [getName ls])) : mapMem ls []) 
 
 
--- takes a list of a's and makes a map of list element memory locations                
-mapMem :: (Show a) => [a] -> MemoryTable -> MemoryTable
-mapMem [] _ = [(getName [], ("null", getName []))]
-mapMem c@(x: xs) table =
-    concat [[(getName c, ((show x), getName xs))], (mapMem xs table)]
+-- gets (name, [children]) from the instance and maps their memory locations                
+mapMem :: (MemMappable a) => a -> MemoryTable -> MemoryTable
+mapMem c table = case children of
+    [] -> [(getName c, (name, []))]
+    _  -> concat [(getName c, (name, [getName x])) : mapMem x table | x <- children]
+    where (name, children) = makeNode c
 
 
 -- generates a set of vertices and edges from test data
-graph :: (Show a) => TestData a -> Graph
-graph d = (map (\ (loc, (label, next)) -> (loc, label)) memoryTable,
-           map (\ (loc, (label, next)) -> (loc, next, "next")) memoryTable)
+graph :: (MemMappable a) => TestData a -> Graph
+graph d = ([(loc, label) | (loc, (label, _)) <- memoryTable],
+           concat [[(loc, n, "next") | n <- next] | (loc, (label, next)) <- memoryTable])
          where memoryTable = makeMemoryTable d
 
 
@@ -82,15 +91,15 @@ graphStyleParams = G.defaultParams {
 
 -- Writes a graph based on test data to a file and displays it
 -- (requires imagemagick to display)
-showGraph :: (Show a) =>  TestData a -> IO ()  
+showGraph :: (MemMappable a) =>  TestData a -> IO ()  
 showGraph td = do
     let (vs, es) = graph td
         dotGraph = G.graphElemsToDot graphStyleParams vs es :: G.DotGraph ID
         dotText = G.printDotGraph dotGraph  :: TL.Text
     TL.writeFile "temp.dot" $ dotText
-    system "dot temp.dot -Tpng > temp.png" >>= \exitCode -> print exitCode
-    system "display temp.png" >>= \exitCode -> print exitCode
-    system "rm temp.png" >>= \exitCode -> print exitCode
+    system "dot temp.dot -Tpng > temp.png"
+    system "display temp.png" 
+    system "rm temp.png"
     system "rm temp.dot" >>= \exitCode -> print exitCode
 
 
