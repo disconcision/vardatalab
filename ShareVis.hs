@@ -90,16 +90,17 @@ graphStyleParams = G.defaultParams {
     
 
 -- Writes a graph based on test data to a file and displays it
--- (requires imagemagick to display)
+-- (requires imagemagick for display)
 showGraph :: (MemMappable a) =>  TestData a -> IO ()  
 showGraph td = do
     let (vs, es) = graph td
+        tempFileName = "temp"
         dotGraph = G.graphElemsToDot graphStyleParams vs es :: G.DotGraph ID
         dotText = G.printDotGraph dotGraph  :: TL.Text
-    TL.writeFile "temp.dot" $ dotText
-    system "dot temp.dot -Tpng > temp.png"
-    system "display temp.png" 
-    system "rm temp.png"
-    system "rm temp.dot" >>= \exitCode -> print exitCode
+    TL.writeFile (tempFileName ++ ".dot") $ dotText
+    system $ "dot " ++ tempFileName ++ ".dot -Tpng > " ++ tempFileName ++ ".png"
+    system $ "display " ++ tempFileName ++ ".png" 
+    system $ "rm " ++ tempFileName ++ ".png"
+    system ("rm " ++ tempFileName ++ ".dot") >>= \exitCode -> print exitCode
 
 
