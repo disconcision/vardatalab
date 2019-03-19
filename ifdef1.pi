@@ -1,0 +1,36 @@
+#line 1 "ifdef1.c" 1
+#if definedEx(A)
+
+#endif
+#if !definedEx(A)
+
+#endif
+#if definedEx(B)
+
+#endif
+#if !definedEx(B)
+#if definedEx(C)
+
+#endif
+#if !definedEx(C)
+
+#endif
+#endif
+int main() {return 
+#if definedEx(B)
+3
+#endif
+#if (definedEx(C) && !definedEx(B) && (definedEx(B) || definedEx(C)))
+4
+#endif
+#if (!definedEx(B) && !definedEx(C) && (!definedEx(C) || definedEx(B) || (!definedEx(B) && !definedEx(C))))
+5
+#endif
+ + 
+#if definedEx(A)
+1
+#endif
+#if !definedEx(A)
+2
+#endif
+;}
