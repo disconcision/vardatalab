@@ -1,0 +1,58 @@
+
+
+
+
+Deep lifting: grammatical approach
+
+consider function definitions
+for functions where all parameters are simple types
+and definitions use only the following grammar
+
+G :== (app f-expr expr)   --case: f-expr is fn
+      (app f-expr expr)   --case: f-expr is wrapped fn
+      (\ id ... -> expr)
+      if expr then expr else expr
+      id-ext (id bound before fn def)
+      id-loc (bound in fn def)
+      lit
+
+G :== (app expr expr) -- no change, just recurse on subterms
+      (app expr <$> expr) OR (app (liftA expr) expr)
+      (mkVarT (\ id ... -> expr))
+      cond' expr then expr else expr --recurse on subexpr
+      id -- recurse on reference
+      (mkVarT lit)
+
+
+-- pure :: a -> f a 
+-- fmap, liftA :: (a -> b) -> f a -> f b
+-- (<*>) :: f (a -> b) -> f a -> f b
+
+-- foo :: Int -> Int
+-- foo a = ((+) 1) a
+-- bar :: Int -> Int
+-- baz :: Int -> Int -> Int
+
+
+(liftA foo (pure 2))
+(liftA ((+) 1) (pure 2))
+((liftA (+) (pure 1)) (pure 2))
+
+baz0 a = 1
+baz1 a = a
+baz2 a = (foo 1)
+baz3 a = (foo a)
+baz4 a = (foo (bar 1))
+baz5 a = (foo (bar a))
+baz6 a = (((+) 1) (foo a))
+baz7 a b = (((+) (foo a)) (bar b))
+
+sbaz5 = liftA baz
+
+dbaz5 da = liftA foo (liftA baz da)
+
+liftA baz <*> a = liftA foo <*> (bar a)
+liftA baz <*> a = liftA foo <*> (bar a)
+
+
+dbaz7 da db = (liftA (liftA (+) (liftA foo da)) (liftA bar db))

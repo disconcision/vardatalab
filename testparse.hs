@@ -5,28 +5,32 @@ import Data.List.Split
 import Text.Parsec
 import Text.Parsec.String (Parser)
 
-readInt :: String -> String
-readInt = read
+-- token preprocessor
+-- I use typechef to dump token info to a file
+-- which is sanitized via the code below:
 
--- "TOK:\tTYPE\tLTOK?\tTEXT\tVAL\tLINE\tCOL\tFEAT"
--- data Token = Token String Bool String String Int Int String
+stringToLists :: String -> [[String]]
+stringToLists = filter ((/=) [""]). map (splitOn "\t") . splitOn "\n"
 
-breakStr :: String -> [[String]]
-breakStr = (filter ((/=) [""])). (map (splitOn "\t")) . (splitOn "\n")
-
-processRec :: [String] -> (String, Bool, String, String, (Int, Int), String)
-processRec [_, typee, lang, text, val, line, col, feat] =
-    (typee, b, text, val, (read line, read col), feat)
+listToTuple :: [String] -> (Bool, String, String, String, (Int, Int), PC)
+listToTuple [_, type', lang, text, val, line, col, feat] =
+    (lang', type', text, val, loc, feat')
     where
-        b = if lang == "true" then True else False        
+        loc = (read line, read col)
+        lang' = if lang == "true" then True else False        
+        Right feat' = (regularParse _pc feat)
+        
+stripRedundantFields :: (Bool, String, String, String, (Int, Int), PC) -> (String, String, (Int, Int), PC) 
+stripRedundantFields (_, type', text, val, loc, feat)  = (type', text, loc, feat) 
 
+preprocessor :: String -> [(String, String, (Int, Int), PC)]
+preprocessor x = map stripRedundantFields . (filter (\(b,_,_,_,_,_) -> b)) . map listToTuple . stringToLists $ x
 
-stripRedundantFields :: (String, Bool, String, String, (Int, Int), String) -> (String, String, (Int, Int), String) 
-stripRedundantFields (typee, b, text, val, lc, feat)  = (typee, text, lc, feat) 
 
 -- features parsing
+-- ref: http://jakewheat.github.io/intro_to_parsing/
 
-data PC = TT | FF | Feature String | Not PC | And [PC] | Or [PC] | Parens Int 
+data PC = TT | FF | Feature String | Not PC | And [PC] | Or [PC]
     deriving Show
 
 _pc :: Parser PC
@@ -87,7 +91,7 @@ main = do
         contents <- readFile "test_token_input.txt"
         --print contents
         --print $ breakStr $ contents
-        mapM_ print $ map stripRedundantFields . (filter (\(_,b,_,_,_,_) -> b)) . map processRec . breakStr $ contents
+        mapM_ print $ preprocessor $ contents
         print $ regularParse _def "def(AB)"
         print $ regularParse _and "(True&def(A))"
         print $ regularParse _pc "(def(C)&!def(B))"
