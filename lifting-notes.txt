@@ -55,4 +55,4 @@ liftA baz <*> a = liftA foo <*> (bar a)
 liftA baz <*> a = liftA foo <*> (bar a)
 
 
-dbaz7 da db = (liftA (liftA (+) (liftA foo da)) (liftA bar db))
+dbaz7 da db = (<*>) ((liftV (+)) ((liftV foo) da)) ((liftV bar) db)
